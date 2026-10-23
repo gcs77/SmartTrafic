@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Traffic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Etapa 11 · Entrega final</p>
+          <h1>Smart Traffic</h1>
+        </div>
+        <div class="status-badge" id="signal-status">Semáforo: A verde</div>
+      </header>
+
+      <div class="project-banner">
+        Simulación de intersección inteligente con comparación de semáforos fijos y adaptativos.
+      </div>
+
+      <main class="layout stage2-layout">
+        <section class="card intersection-card">
+          <h2>Intersección</h2>
+          <div class="intersection-scene">
+            <div class="road road-horizontal"></div>
+            <div class="road road-vertical"></div>
+            <div class="center-box"></div>
+
+            <div class="lane lane-a">
+              <div class="queue-indicator" id="queue-a">6</div>
+              <div class="signal light-a" id="light-a"></div>
+            </div>
+
+            <div class="lane lane-b">
+              <div class="queue-indicator" id="queue-b">4</div>
+              <div class="signal light-b" id="light-b"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="card controls-card">
+          <h2>Controles</h2>
+
+          <div class="controls-grid">
+            <label>λ A <input id="arrival-a" type="number" step="0.1" value="1.2" /></label>
+            <label>λ B <input id="arrival-b" type="number" step="0.1" value="1.0" /></label>
+            <label>μ A <input id="service-a" type="number" step="0.1" value="2.0" /></label>
+            <label>μ B <input id="service-b" type="number" step="0.1" value="1.8" /></label>
+            <label>Verde <input id="green-time" type="number" step="0.5" value="10" /></label>
+            <label>Amarillo <input id="yellow-time" type="number" step="0.5" value="2" /></label>
+            <label>Fila inicial A <input id="initial-a" type="number" min="0" value="6" /></label>
+            <label>Fila inicial B <input id="initial-b" type="number" min="0" value="4" /></label>
+            <label>Tiempo total <input id="total-time" type="number" step="10" value="60" /></label>
+            <label>Modo <select id="mode-select"><option value="fixed">Fijo</option><option value="adaptive">Adaptativo</option></select></label>
+          </div>
+
+          <div class="button-row">
+            <button id="start-btn">Iniciar</button>
+            <button id="pause-btn">Pausar</button>
+            <button id="resume-btn">Reanudar</button>
+            <button id="reset-btn">Reiniciar</button>
+          </div>
+        </aside>
+
+        <section class="card stats-card">
+          <h2>Estadísticas del sistema</h2>
+          <div class="stats-grid">
+            <div class="stat-box"><span>Tiempo</span><strong id="elapsed-time">0.0 s</strong></div>
+            <div class="stat-box"><span>Vehículos llegados</span><strong id="arrivals-total">0</strong></div>
+            <div class="stat-box"><span>Vehículos salidos</span><strong id="departures-total">0</strong></div>
+            <div class="stat-box"><span>Esperando</span><strong id="waiting-total">0</strong></div>
+            <div class="stat-box"><span>Fila máxima A</span><strong id="max-a">0</strong></div>
+            <div class="stat-box"><span>Fila máxima B</span><strong id="max-b">0</strong></div>
+          </div>
+        </section>
+
+        <section class="card comparison-card">
+          <h2>Comparación final</h2>
+          <div class="comparison-grid">
+            <div class="metric"><span>Fijo</span><strong id="fixed-total">0.0</strong></div>
+            <div class="metric"><span>Adaptativo</span><strong id="adaptive-total">0.0</strong></div>
+            <div class="metric highlight"><span>Reducción</span><strong id="reduction-percent">0%</strong></div>
+          </div>
+          <div class="scenario-summary-wrapper">
+            <h3>Resumen ejecutivo</h3>
+            <div id="scenario-summary" class="scenario-summary"></div>
+            <div class="executive-note" id="executive-note">{{ project_overview.verdict }}</div>
+          </div>
+        </section>
+
+        <section class="card chart-card">
+          <h2>Vehículos en fila</h2>
+          <canvas id="queueChart" height="180"></canvas>
+        </section>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      Smart Traffic · Proyecto académico final
+    </footer>
+
+    <script>
+      window.scenarioSummary = {{ scenario_summary|tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  </body>
+</html>
