@@ -39,7 +39,7 @@
               </div>
               <p class="scene-instructions">Las vías A y B se cruzan en una zona compartida: solo una puede avanzar a la vez. En amarillo, los coches se preparan para detenerse.</p>
               <div class="intersection-scene">
-                <svg class="intersection-map" viewBox="0 -50 800 490" role="img" aria-labelledby="intersection-title intersection-description">
+                <svg class="intersection-map" viewBox="0 -100 800 540" role="img" aria-labelledby="intersection-title intersection-description">
                   <title id="intersection-title">Simulación animada de la intersección</title>
                   <desc id="intersection-description">Dos vías perpendiculares comparten una zona de conflicto. Los semáforos coordinan el paso para que solo una dirección avance a la vez.</desc>
 
@@ -69,11 +69,11 @@
                   <rect width="800" height="440" fill="url(#park-fill)" />
                   <path d="M0 24h800M0 416h800" stroke="#9fc68a" stroke-width="2" stroke-dasharray="8 12" />
                   <rect x="0" y="146" width="800" height="148" fill="url(#road-fill)" />
-                  <rect x="324" y="0" width="152" height="440" fill="url(#road-fill)" />
-                  <path d="M0 153H800M0 287H800M331 0V440M469 0V440" stroke="#8794a5" stroke-width="3" />
-                  <path d="M0 220H324M476 220H800M400 0V146M400 294V440" stroke="#e6c85c" stroke-width="3" stroke-dasharray="20 14" />
+                  <rect x="324" y="-100" width="152" height="540" fill="url(#road-fill)" />
+                  <path d="M0 153H800M0 287H800M331 -100V440M469 -100V440" stroke="#8794a5" stroke-width="3" />
+                  <path d="M0 220H324M476 220H800M400 -100V146M400 294V440" stroke="#e6c85c" stroke-width="3" stroke-dasharray="20 14" />
                   <path d="M0 255H800" class="lane-guide" :class="'lane-guide-' + signalStateA" />
-                  <path d="M365 0V440" class="lane-guide" :class="'lane-guide-' + signalStateB" />
+                  <path d="M365 -100V440" class="lane-guide" :class="'lane-guide-' + signalStateB" />
                   <rect x="324" y="146" width="152" height="148" fill="rgba(251,191,36,.08)" stroke="#fbbf24" stroke-width="2" stroke-dasharray="8 6" />
                   <rect x="536" y="326" width="234" height="30" rx="10" fill="#172033" stroke="#fbbf24" />
                   <text x="653" y="345" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">ZONA DE CONFLICTO · PASO ALTERNADO</text>
@@ -99,10 +99,10 @@
                     <text x="530" y="80">FILA B · [[ Math.round(queues.B) ]] [[ Math.ceil(queues.B) > 4 ? '· +' + (Math.ceil(queues.B) - 4) + ' fuera de vista' : 'vehículos' ]]</text>
                   </g>
 
-                  <g v-for="(car, index) in visibleQueueA" :key="'queue-a-' + car.id" :data-car-id="car.id" class="queued-car" :class="{ 'car-near-stop': index === visibleQueueA.length - 1 }" :style="{ '--car-delay': index * 45 + 'ms' }" :transform="'translate(' + car.x + ' ' + car.y + ')'">
+                  <g v-for="(car, index) in visibleQueueA" :key="'queue-a-' + car.id" :data-car-id="car.id" class="queued-car" :class="{ 'car-near-stop': index === visibleQueueA.length - 1 }" :transform="'translate(' + car.x + ' ' + car.y + ')'">
                     <use href="#car-model" :style="{ color: car.color }" filter="url(#car-shadow)" />
                   </g>
-                  <g v-for="(car, index) in visibleQueueB" :key="'queue-b-' + car.id" :data-car-id="car.id" class="queued-car" :class="{ 'car-near-stop': index === visibleQueueB.length - 1 }" :style="{ '--car-delay': index * 45 + 'ms' }" :transform="'translate(' + car.x + ' ' + car.y + ') rotate(90 22 13)'">
+                  <g v-for="(car, index) in visibleQueueB" :key="'queue-b-' + car.id" :data-car-id="car.id" class="queued-car" :class="{ 'car-near-stop': index === visibleQueueB.length - 1 }" :transform="'translate(' + car.x + ' ' + car.y + ') rotate(90 22 13)'">
                     <use href="#car-model" :style="{ color: car.color }" filter="url(#car-shadow)" />
                   </g>
 

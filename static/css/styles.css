@@ -295,9 +295,8 @@ h1 {
 .queued-car {
     transform-box: fill-box;
     transform-origin: center;
-    animation: car-arrive 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    animation-delay: var(--car-delay, 0ms);
-    transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: car-arrive 180ms ease-out both;
+    transition: transform 420ms cubic-bezier(0.22, 0.7, 0.25, 1);
 }
 
 .car-near-stop {
@@ -310,27 +309,27 @@ h1 {
 }
 
 .flow-car-a {
-    animation: drive-east 3.2s cubic-bezier(0.36, 0.08, 0.2, 1) infinite;
+    animation: drive-east 3.2s linear infinite;
     animation-delay: var(--car-delay, 0ms);
 }
 
 .flow-car-b {
-    animation: drive-south 3.2s cubic-bezier(0.36, 0.08, 0.2, 1) infinite;
+    animation: drive-south 3.2s linear infinite;
     animation-delay: var(--car-delay, 0ms);
 }
 
 @keyframes drive-east {
     0% { transform: translate(258px, 242px); opacity: 0; }
-    8% { opacity: 1; }
-    82% { opacity: 1; }
+    6% { opacity: 1; }
+    94% { opacity: 1; }
     100% { transform: translate(555px, 242px); opacity: 0; }
 }
 
 @keyframes drive-south {
-    0% { transform: translate(308px, 94px); opacity: 0; }
-    8% { opacity: 1; }
-    82% { opacity: 1; }
-    100% { transform: translate(308px, 390px); opacity: 0; }
+    0% { transform: translate(343px, -90px); opacity: 0; }
+    6% { opacity: 1; }
+    94% { opacity: 1; }
+    100% { transform: translate(343px, 410px); opacity: 0; }
 }
 
 .numeric-panel {
