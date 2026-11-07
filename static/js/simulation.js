@@ -1,236 +1,312 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const signalStatus = document.getElementById('signal-status');
-    const elapsedTimeEl = document.getElementById('elapsed-time');
-    const arrivalsTotalEl = document.getElementById('arrivals-total');
-    const departuresTotalEl = document.getElementById('departures-total');
-    const waitingTotalEl = document.getElementById('waiting-total');
-    const maxAEl = document.getElementById('max-a');
-    const maxBEl = document.getElementById('max-b');
-    const queueAEl = document.getElementById('queue-a');
-    const queueBEl = document.getElementById('queue-b');
-    const lightAEl = document.getElementById('light-a');
-    const lightBEl = document.getElementById('light-b');
-    const fixedTotalEl = document.getElementById('fixed-total');
-    const adaptiveTotalEl = document.getElementById('adaptive-total');
-    const reductionEl = document.getElementById('reduction-percent');
-    const modeSelect = document.getElementById('mode-select');
+const { createApp } = Vue;
 
-    const configInputs = {
-        arrivalA: document.getElementById('arrival-a'),
-        arrivalB: document.getElementById('arrival-b'),
-        serviceA: document.getElementById('service-a'),
-        serviceB: document.getElementById('service-b'),
-        greenTime: document.getElementById('green-time'),
-        yellowTime: document.getElementById('yellow-time'),
-        initialA: document.getElementById('initial-a'),
-        initialB: document.getElementById('initial-b'),
-        totalTime: document.getElementById('total-time'),
-    };
-
-    const state = {
-        running: false,
-        intervalId: null,
-        elapsed: 0,
-        phaseIndex: 0,
-        queues: { A: 6, B: 4 },
-        stats: {
-            arrivals: 0,
-            departures: 0,
-            maxA: 6,
-            maxB: 4,
-            history: [],
-        },
-        lastTick: 0,
-    };
-
-    const phases = [
-        { name: 'A_GREEN', duration: Number(configInputs.greenTime.value) },
-        { name: 'YELLOW', duration: Number(configInputs.yellowTime.value) },
-        { name: 'B_GREEN', duration: Number(configInputs.greenTime.value) },
-        { name: 'YELLOW', duration: Number(configInputs.yellowTime.value) },
-    ];
-
-    function getPhase() {
-        return phases[state.phaseIndex % phases.length];
-    }
-
-    function clamp(value, min, max) {
-        return Math.min(Math.max(value, min), max);
-    }
-
-    function getCurrentConfig() {
+createApp({
+    delimiters: ['[[', ']]'],
+    data() {
         return {
-            arrivalA: Number(configInputs.arrivalA.value) || 0,
-            arrivalB: Number(configInputs.arrivalB.value) || 0,
-            serviceA: Number(configInputs.serviceA.value) || 0,
-            serviceB: Number(configInputs.serviceB.value) || 0,
-            greenTime: Number(configInputs.greenTime.value) || 1,
-            yellowTime: Number(configInputs.yellowTime.value) || 0,
-            totalTime: Number(configInputs.totalTime.value) || 60,
+            config: {
+                arrivalA: 1.2,
+                arrivalB: 1.0,
+                serviceA: 2.0,
+                serviceB: 1.8,
+                greenTime: 10,
+                yellowTime: 2,
+                initialA: 6,
+                initialB: 4,
+                totalTime: 60,
+            },
+            mode: 'fixed',
+            running: false,
+            intervalId: null,
+            elapsed: 0,
+            lastAnalysisSecond: -1,
+            analysisRequestId: 0,
+            phaseIndex: 0,
+            phaseElapsed: 0,
+            signalPhase: 'A_GREEN',
+            signalStatus: 'Semáforo: A verde',
+            queueVehicles: { A: [], B: [] },
+            nextVehicleId: 1,
+            phases: [
+                { name: 'A_GREEN', duration: 10 },
+                { name: 'A_YELLOW', duration: 2 },
+                { name: 'B_GREEN', duration: 10 },
+                { name: 'B_YELLOW', duration: 2 },
+            ],
+            queues: { A: 6, B: 4 },
+            stats: {
+                arrivals: 0,
+                departures: 0,
+                maxA: 6,
+                maxB: 4,
+                history: [],
+            },
+            scenarioSummary: window.scenarioSummary || {
+                scenarios: [],
+                best_mode: 'fixed',
+                wins: { fixed: 0, adaptive: 0 },
+                average_difference_percent: 0,
+            },
+            analysis: {
+                targetQueue: 4,
+                jacobiA: 0,
+                jacobiB: 0,
+                greenA: 0,
+                greenB: 0,
+                falseA: 0,
+                falseB: 0,
+                forecastA: 0,
+                forecastB: 0,
+                simpson: 0,
+                romberg: 0,
+                error: '',
+            },
+            carColors: ['#38bdf8', '#fb7185', '#fbbf24', '#a78bfa', '#34d399'],
         };
-    }
+    },
+    computed: {
+        signalStateA() {
+            if (this.signalPhase === 'A_GREEN') return 'green';
+            if (this.signalPhase === 'A_YELLOW') return 'yellow';
+            return 'red';
+        },
+        signalStateB() {
+            if (this.signalPhase === 'B_GREEN') return 'green';
+            if (this.signalPhase === 'B_YELLOW') return 'yellow';
+            return 'red';
+        },
+        visibleQueueA() {
+            const visibleVehicles = this.queueVehicles.A.slice(-6);
+            const count = visibleVehicles.length;
+            return visibleVehicles.map((vehicle, index) => ({
+                ...vehicle,
+                x: 260 - (count - index - 1) * 48,
+                y: 242,
+            }));
+        },
+        visibleQueueB() {
+            const visibleVehicles = this.queueVehicles.B.slice(-4);
+            const count = visibleVehicles.length;
+            return visibleVehicles.map((vehicle, index) => ({
+                ...vehicle,
+                x: 308,
+                y: 95 - (count - index - 1) * 44,
+            }));
+        },
+        movingCarsA() {
+            const count = this.running && this.signalStateA === 'green' ? Math.min(3, Math.ceil(this.queues.A)) : 0;
+            return Array.from({ length: count }, (_, index) => index);
+        },
+        movingCarsB() {
+            const count = this.running && this.signalStateB === 'green' ? Math.min(3, Math.ceil(this.queues.B)) : 0;
+            return Array.from({ length: count }, (_, index) => index);
+        },
+        currentScenario() {
+            const scenario = this.scenarioSummary.scenarios[0] || {};
+            const fixed = Number(scenario.fixed_total_queue || 0);
+            const adaptive = Number(scenario.adaptive_total_queue || 0);
 
-    function syncPhaseDurations() {
-        phases[0].duration = Number(configInputs.greenTime.value) || 1;
-        phases[2].duration = Number(configInputs.greenTime.value) || 1;
-        phases[1].duration = Number(configInputs.yellowTime.value) || 0;
-        phases[3].duration = Number(configInputs.yellowTime.value) || 0;
-    }
+            return {
+                fixed,
+                adaptive,
+                reduction: fixed === 0 ? 0 : ((fixed - adaptive) / fixed) * 100,
+            };
+        },
+        executiveNote() {
+            const summary = this.scenarioSummary;
+            if (!summary.scenarios.length) {
+                return 'No hay escenarios disponibles para resumir.';
+            }
 
-    function setSignalLights(phaseName) {
-        const aGreen = phaseName === 'A_GREEN';
-        const bGreen = phaseName === 'B_GREEN';
-        lightAEl.style.background = aGreen ? '#22c55e' : '#475569';
-        lightBEl.style.background = bGreen ? '#22c55e' : '#475569';
-        lightAEl.style.boxShadow = aGreen ? '0 0 18px rgba(34,197,94,0.9)' : '0 0 10px rgba(255,255,255,0.1)';
-        lightBEl.style.boxShadow = bGreen ? '0 0 18px rgba(34,197,94,0.9)' : '0 0 10px rgba(255,255,255,0.1)';
-        signalStatus.textContent = `Semáforo: ${aGreen ? 'A verde' : bGreen ? 'B verde' : 'Amarillo'}`;
-    }
+            const bestMode = summary.best_mode === 'adaptive' ? 'Adaptativo' : 'Fijo';
+            const wins = summary.wins[summary.best_mode] || 0;
+            const total = summary.total_scenarios || summary.scenarios.length;
+            const average = Number(summary.average_difference_percent || 0).toFixed(1);
+            return `${bestMode} ganó ${wins} de ${total} escenarios. Reducción promedio: ${average}%.`;
+        },
+    },
+    mounted() {
+        window.queueChartUpdater.init();
+        this.resetSimulation();
+    },
+    beforeUnmount() {
+        this.pauseSimulation();
+    },
+    methods: {
+        getPhase() {
+            return this.phases[this.phaseIndex % this.phases.length];
+        },
+        clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+        },
+        syncQueueVehicles(direction, queueSize) {
+            const vehicles = this.queueVehicles[direction];
+            const targetCount = Math.min(100, Math.ceil(queueSize));
+            while (vehicles.length < targetCount) {
+                const colorOffset = direction === 'A' ? 0 : 2;
+                vehicles.unshift({
+                    id: this.nextVehicleId++,
+                    color: this.carColors[(this.nextVehicleId + colorOffset - 2) % this.carColors.length],
+                });
+            }
+            if (vehicles.length > targetCount) {
+                vehicles.splice(targetCount);
+            }
+        },
+        getCurrentConfig() {
+            return {
+                arrivalA: Number(this.config.arrivalA) || 0,
+                arrivalB: Number(this.config.arrivalB) || 0,
+                serviceA: Number(this.config.serviceA) || 0,
+                serviceB: Number(this.config.serviceB) || 0,
+                greenTime: Number(this.config.greenTime) || 1,
+                yellowTime: Number(this.config.yellowTime) || 0,
+                totalTime: Number(this.config.totalTime) || 60,
+            };
+        },
+        syncPhaseDurations() {
+            const greenTime = Number(this.config.greenTime) || 1;
+            const yellowTime = Number(this.config.yellowTime) || 0;
+            this.phases[0].duration = this.mode === 'adaptive' ? Math.max(1, this.analysis.greenA || greenTime) : greenTime;
+            this.phases[2].duration = this.mode === 'adaptive' ? Math.max(1, this.analysis.greenB || greenTime) : greenTime;
+            this.phases[1].duration = yellowTime;
+            this.phases[3].duration = yellowTime;
+        },
+        setSignal(phaseName) {
+            this.signalPhase = phaseName;
+            const aGreen = phaseName === 'A_GREEN';
+            const bGreen = phaseName === 'B_GREEN';
+            const aYellow = phaseName === 'A_YELLOW';
+            const bYellow = phaseName === 'B_YELLOW';
+            this.signalStatus = `Semáforo: ${aGreen ? 'A verde · B rojo' : bGreen ? 'B verde · A rojo' : aYellow ? 'A amarillo · B rojo' : bYellow ? 'B amarillo · A rojo' : 'todo rojo'}`;
+        },
+        signalLabel(state) {
+            return state === 'green' ? 'VERDE · avanzan' : state === 'yellow' ? 'AMARILLO · precaución' : 'ROJO · detenerse';
+        },
+        stepSimulation(dt) {
+            const config = this.getCurrentConfig();
+            const phase = this.getPhase();
+            const aGreen = phase.name === 'A_GREEN';
+            const bGreen = phase.name === 'B_GREEN';
 
-    function renderStats() {
-        elapsedTimeEl.textContent = `${state.elapsed.toFixed(1)} s`;
-        arrivalsTotalEl.textContent = Math.round(state.stats.arrivals);
-        departuresTotalEl.textContent = Math.round(state.stats.departures);
-        waitingTotalEl.textContent = Math.round(state.queues.A + state.queues.B);
-        maxAEl.textContent = Math.round(state.stats.maxA);
-        maxBEl.textContent = Math.round(state.stats.maxB);
-        queueAEl.textContent = state.queues.A.toFixed(0);
-        queueBEl.textContent = state.queues.B.toFixed(0);
-    }
+            const arrivalsA = config.arrivalA * dt;
+            const arrivalsB = config.arrivalB * dt;
+            const departuresA = aGreen ? Math.min(this.queues.A, config.serviceA * dt) : 0;
+            const departuresB = bGreen ? Math.min(this.queues.B, config.serviceB * dt) : 0;
 
-    function updateComparisonSummary() {
-        const summary = window.scenarioSummary || { scenarios: [], best_mode: 'fixed', wins: { fixed: 0, adaptive: 0 }, average_difference_percent: 0 };
-        const current = summary.scenarios[0] || { fixed_total_queue: 0, adaptive_total_queue: 0, difference_percent: 0 };
-        const fixed = Number(current.fixed_total_queue || 0);
-        const adaptive = Number(current.adaptive_total_queue || 0);
-        const reduction = fixed === 0 ? 0 : ((fixed - adaptive) / fixed) * 100;
-        fixedTotalEl.textContent = fixed.toFixed(1);
-        adaptiveTotalEl.textContent = adaptive.toFixed(1);
-        reductionEl.textContent = `${reduction.toFixed(1)}%`;
+            this.queues.A = this.clamp(this.queues.A + arrivalsA - departuresA, 0, 9999);
+            this.queues.B = this.clamp(this.queues.B + arrivalsB - departuresB, 0, 9999);
+            this.syncQueueVehicles('A', this.queues.A);
+            this.syncQueueVehicles('B', this.queues.B);
+            this.stats.arrivals += arrivalsA + arrivalsB;
+            this.stats.departures += departuresA + departuresB;
+            this.stats.maxA = Math.max(this.stats.maxA, this.queues.A);
+            this.stats.maxB = Math.max(this.stats.maxB, this.queues.B);
 
-        const scenarioList = document.getElementById('scenario-summary');
-        const executiveNote = document.getElementById('executive-note');
+            this.elapsed += dt;
+            this.stats.history.push({ time: this.elapsed, a: this.queues.A, b: this.queues.B });
+            this.phaseElapsed += dt;
+            const elapsedSecond = Math.floor(this.elapsed);
+            if (elapsedSecond > this.lastAnalysisSecond) {
+                this.lastAnalysisSecond = elapsedSecond;
+                this.refreshAnalysis();
+            }
+            if (this.elapsed >= config.totalTime) {
+                this.stopSimulation();
+                return;
+            }
 
-        if (summary.scenarios.length > 0) {
-            scenarioList.innerHTML = summary.scenarios
-                .map((scenario, index) => {
-                    const winner = scenario.winner || 'fixed';
-                    return `
-                        <div class="scenario-item">
-                            <strong>Escenario ${index + 1}</strong>
-                            <span>Fijo: ${Number(scenario.fixed_total_queue).toFixed(1)}</span>
-                            <span class="winner">${winner === 'adaptive' ? 'Adaptativo' : 'Fijo'} gana</span>
-                        </div>
-                    `;
-                })
-                .join('');
-            const overallLabel = document.createElement('div');
-            overallLabel.className = 'scenario-item';
-            overallLabel.innerHTML = `<strong>Modo global</strong><span>${summary.best_mode === 'adaptive' ? 'Adaptativo' : 'Fijo'}</span><span class="winner">ganador</span>`;
-            scenarioList.appendChild(overallLabel);
+            while (this.phaseElapsed >= this.phases[this.phaseIndex].duration) {
+                this.phaseElapsed -= this.phases[this.phaseIndex].duration;
+                this.phaseIndex = (this.phaseIndex + 1) % this.phases.length;
+                this.syncPhaseDurations();
+            }
 
-            const modeLabel = summary.best_mode === 'adaptive' ? 'Adaptativo' : 'Fijo';
-            const winText = `${modeLabel} ganó ${summary.wins[summary.best_mode] || 0} de ${summary.total_scenarios || summary.scenarios.length} escenarios.`;
-            const averageText = `Reducción promedio: ${Number(summary.average_difference_percent || 0).toFixed(1)}%.`;
-            executiveNote.textContent = `${winText} ${averageText}`;
-        } else {
-            scenarioList.innerHTML = '';
-            executiveNote.textContent = 'No hay escenarios disponibles para resumir.';
-        }
-    }
-
-    function stepSimulation(dt) {
-        const config = getCurrentConfig();
-        const phase = getPhase();
-        const aGreen = phase.name === 'A_GREEN';
-        const bGreen = phase.name === 'B_GREEN';
-
-        const arrivalsA = config.arrivalA * dt;
-        const arrivalsB = config.arrivalB * dt;
-        const departuresA = aGreen ? Math.min(state.queues.A, config.serviceA * dt) : 0;
-        const departuresB = bGreen ? Math.min(state.queues.B, config.serviceB * dt) : 0;
-
-        state.queues.A = clamp(state.queues.A + arrivalsA - departuresA, 0, 9999);
-        state.queues.B = clamp(state.queues.B + arrivalsB - departuresB, 0, 9999);
-
-        state.stats.arrivals += arrivalsA + arrivalsB;
-        state.stats.departures += departuresA + departuresB;
-        state.stats.maxA = Math.max(state.stats.maxA, state.queues.A);
-        state.stats.maxB = Math.max(state.stats.maxB, state.queues.B);
-        state.stats.history.push({ time: state.elapsed, a: state.queues.A, b: state.queues.B });
-
-        state.elapsed += dt;
-        if (state.elapsed >= config.totalTime) {
-            stopSimulation();
-            return;
-        }
-
-        if (state.elapsed >= phases[state.phaseIndex].duration) {
-            state.phaseIndex = (state.phaseIndex + 1) % phases.length;
-        }
-
-        setSignalLights(getPhase().name);
-        renderStats();
-        updateComparisonSummary();
-        window.queueChartUpdater && window.queueChartUpdater.updateChart(state.stats.history);
-    }
-
-    function tick() {
-        syncPhaseDurations();
-        stepSimulation(0.5);
-    }
-
-    function startSimulation() {
-        syncPhaseDurations();
-        if (state.running) return;
-        state.running = true;
-        state.lastTick = performance.now();
-        state.intervalId = setInterval(tick, 500);
-        setSignalLights(getPhase().name);
-    }
-
-    function pauseSimulation() {
-        state.running = false;
-        if (state.intervalId) clearInterval(state.intervalId);
-        state.intervalId = null;
-    }
-
-    function resumeSimulation() {
-        if (!state.running) {
-            startSimulation();
-        }
-    }
-
-    function resetSimulation() {
-        pauseSimulation();
-        state.elapsed = 0;
-        state.phaseIndex = 0;
-        state.queues.A = Number(configInputs.initialA.value) || 0;
-        state.queues.B = Number(configInputs.initialB.value) || 0;
-        state.stats.arrivals = 0;
-        state.stats.departures = 0;
-        state.stats.maxA = state.queues.A;
-        state.stats.maxB = state.queues.B;
-        state.stats.history = [{ time: 0, a: state.queues.A, b: state.queues.B }];
-        setSignalLights('A_GREEN');
-        renderStats();
-        updateComparisonSummary();
-        window.queueChartUpdater && window.queueChartUpdater.updateChart(state.stats.history);
-    }
-
-    document.getElementById('start-btn').addEventListener('click', startSimulation);
-    document.getElementById('pause-btn').addEventListener('click', pauseSimulation);
-    document.getElementById('resume-btn').addEventListener('click', resumeSimulation);
-    document.getElementById('reset-btn').addEventListener('click', resetSimulation);
-    modeSelect.addEventListener('change', () => {
-        signalStatus.textContent = `Semáforo: modo ${modeSelect.value}`;
-    });
-
-    function stopSimulation() {
-        pauseSimulation();
-        state.running = false;
-        signalStatus.textContent = 'Semáforo: simulado';
-    }
-
-    resetSimulation();
-});
+            this.setSignal(this.getPhase().name);
+            window.queueChartUpdater.updateChart(this.stats.history);
+        },
+        tick() {
+            this.stepSimulation(0.5);
+        },
+        startSimulation() {
+            this.syncPhaseDurations();
+            if (this.running) return;
+            this.running = true;
+            this.refreshAnalysis();
+            this.intervalId = window.setInterval(this.tick, 500);
+            this.setSignal(this.getPhase().name);
+        },
+        pauseSimulation() {
+            this.running = false;
+            if (this.intervalId !== null) {
+                window.clearInterval(this.intervalId);
+            }
+            this.intervalId = null;
+        },
+        resumeSimulation() {
+            if (!this.running) {
+                this.startSimulation();
+            }
+        },
+        resetSimulation() {
+            this.pauseSimulation();
+            this.elapsed = 0;
+            this.phaseIndex = 0;
+            this.phaseElapsed = 0;
+            this.queues.A = Number(this.config.initialA) || 0;
+            this.queues.B = Number(this.config.initialB) || 0;
+            this.queueVehicles.A = [];
+            this.queueVehicles.B = [];
+            this.nextVehicleId = 1;
+            this.syncQueueVehicles('A', this.queues.A);
+            this.syncQueueVehicles('B', this.queues.B);
+            this.stats.arrivals = 0;
+            this.stats.departures = 0;
+            this.stats.maxA = this.queues.A;
+            this.stats.maxB = this.queues.B;
+            this.stats.history = [{ time: 0, a: this.queues.A, b: this.queues.B }];
+            this.lastAnalysisSecond = -1;
+            this.setSignal('A_GREEN');
+            window.queueChartUpdater.updateChart(this.stats.history);
+            this.refreshAnalysis();
+        },
+        stopSimulation() {
+            this.pauseSimulation();
+            this.signalStatus = 'Semáforo: simulado';
+        },
+        changeMode() {
+            this.syncPhaseDurations();
+            this.signalStatus = `Semáforo: modo ${this.mode}`;
+        },
+        async refreshAnalysis() {
+            const requestId = ++this.analysisRequestId;
+            this.analysis.error = '';
+            try {
+                const response = await fetch('/api/traffic-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        queues: this.queues,
+                        rates: {
+                            arrivalA: Number(this.config.arrivalA) || 0,
+                            arrivalB: Number(this.config.arrivalB) || 0,
+                            serviceA: Number(this.config.serviceA) || 0,
+                            serviceB: Number(this.config.serviceB) || 0,
+                        },
+                        history: this.stats.history.slice(-33),
+                    }),
+                });
+                const result = await response.json();
+                if (requestId !== this.analysisRequestId) return;
+                if (!response.ok) {
+                    throw new Error(result.error || `HTTP ${response.status}`);
+                }
+                this.analysis = { ...result, error: '' };
+            } catch (error) {
+                if (requestId === this.analysisRequestId) {
+                    this.analysis.error = error.message;
+                }
+            }
+        },
+    },
+}).mount('#app');

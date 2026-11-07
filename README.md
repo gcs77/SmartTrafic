@@ -321,3 +321,15 @@ La etapa 4 se completa cuando cada método:
 - produce un valor numérico consistente con la teoría
 
 Estas comprobaciones se mantienen en la suite de pruebas del proyecto.
+
+## Interfaz con Vue
+
+La interfaz está implementada con Vue 3 usando su compilación global desde CDN; Flask sigue sirviendo la página y generando el resumen de escenarios. Chart.js se mantiene para la gráfica y no se requiere Node.js ni un paso de compilación. Al abrir la aplicación, se necesita conexión a internet para cargar Vue y Chart.js desde sus CDN.
+
+La intersección muestra dos aproximaciones perpendiculares que comparten una zona de conflicto: una dirección cruza con luz verde mientras la otra espera en rojo. El panel numérico actualiza Jacobi para estimar la presión acoplada de las filas, bisección y regla falsa para recomendar y verificar la duración del verde, Newton para pronosticar las filas y Simpson/Romberg para medir la congestión acumulada. En modo adaptativo, las recomendaciones de bisección ajustan la duración de las fases verdes. Cada dirección también muestra sus luces roja, amarilla y verde con etiquetas textuales.
+
+La interfaz organiza los métodos por etapas (estimar, decidir y evaluar), muestra indicadores de cola y usa vehículos animados en vista cenital para visualizar el avance por el cruce.
+
+La simulación de una ciudad está disponible en `http://127.0.0.1:5000/city` y desde el enlace «Explorar ciudad». Representa una red didáctica de cuatro cruces, cada uno con fases horizontales y verticales. El modo inteligente compara la presión de las filas y limita la espera; el modo fijo permite contrastar la estrategia. Las tasas y el mapa son parámetros de demostración, no datos de una ciudad real.
+
+En la primera intersección, cada coche de la fila conserva su identidad al llegar o salir, y las posiciones se reacomodan con transición en lugar de recrear la fila completa.

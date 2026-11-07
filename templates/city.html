@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ciudad inteligente · Smart Traffic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/city.css') }}" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  </head>
+  <body>
+    <div id="city-app" v-cloak>
+      <div class="page-shell">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Red urbana · Control coordinado</p>
+            <h1>Ciudad inteligente</h1>
+          </div>
+          <div class="topbar-actions">
+            <a class="navigation-link" href="{{ url_for('index') }}">Volver al cruce</a>
+            <div class="status-badge">[[ running ? 'RED ACTIVA' : 'RED EN PAUSA' ]]</div>
+          </div>
+        </header>
+
+        <div class="project-banner">
+          Cuatro intersecciones actualizan sus semáforos en paralelo según la presión de las filas.
+        </div>
+
+        <main class="city-layout">
+          <section class="card city-scene-card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">SIMULACIÓN URBANA</p>
+                <h2>Red de intersecciones</h2>
+              </div>
+              <span class="live-indicator" :class="{ 'is-running': running }">
+                <span></span> [[ running ? 'EN MARCHA' : 'EN PAUSA' ]]
+              </span>
+            </div>
+            <p class="scene-instructions">
+              Cada cruce elige entre el flujo horizontal y vertical. El modo inteligente prioriza la fila más
+              cargada y evita dejar una dirección esperando indefinidamente.
+            </p>
+
+            <div class="city-map-frame">
+              <svg class="city-map" viewBox="0 0 1000 640" role="img" aria-labelledby="city-title city-description">
+                <title id="city-title">Mapa de cuatro intersecciones inteligentes</title>
+                <desc id="city-description">Cuatro cruces de una ciudad muestran sus filas y semáforos horizontales y verticales.</desc>
+                <defs>
+                  <pattern id="city-block-pattern" width="18" height="18" patternUnits="userSpaceOnUse">
+                    <path d="M0 18 18 0" stroke="#d4e5cf" stroke-width="1" opacity=".55" />
+                  </pattern>
+                </defs>
+                <rect width="1000" height="640" fill="#d7e8cb" />
+
+                <g class="city-blocks">
+                  <rect x="28" y="24" width="206" height="100" rx="14" />
+                  <rect x="397" y="24" width="206" height="100" rx="14" />
+                  <rect x="766" y="24" width="206" height="100" rx="14" />
+                  <rect x="28" y="272" width="206" height="108" rx="14" />
+                  <rect x="397" y="272" width="206" height="108" rx="14" />
+                  <rect x="766" y="272" width="206" height="108" rx="14" />
+                  <rect x="28" y="516" width="206" height="100" rx="14" />
+                  <rect x="397" y="516" width="206" height="100" rx="14" />
+                  <rect x="766" y="516" width="206" height="100" rx="14" />
+                  <path d="M45 42h172v64H45zM414 42h172v64H414zM783 42h172v64H783zM45 290h172v72H45zM414 290h172v72H414zM783 290h172v72H783zM45 534h172v64H45zM414 534h172v64H414zM783 534h172v64H783z" />
+                  <text x="131" y="80">BARRIO NORTE</text>
+                  <text x="500" y="80">CENTRO</text>
+                  <text x="869" y="80">BARRIO ESTE</text>
+                  <text x="131" y="328">PARQUE</text>
+                  <text x="500" y="328">DISTRITO CENTRAL</text>
+                  <text x="869" y="328">COMERCIO</text>
+                  <text x="131" y="572">BARRIO SUR</text>
+                  <text x="500" y="572">SERVICIOS</text>
+                  <text x="869" y="572">TERMINAL</text>
+                </g>
+
+                <g class="city-roads">
+                  <rect x="0" y="146" width="1000" height="88" />
+                  <rect x="0" y="406" width="1000" height="88" />
+                  <rect x="266" y="0" width="88" height="640" />
+                  <rect x="646" y="0" width="88" height="640" />
+                  <path d="M0 190H1000M0 450H1000M310 0V640M690 0V640" />
+                  <path d="M0 153H1000M0 227H1000M0 413H1000M0 487H1000M273 0V640M347 0V640M653 0V640M727 0V640" class="road-edge" />
+                </g>
+                <text class="map-direction-label" x="30" y="139">AVENIDA PRINCIPAL ↔</text>
+                <text class="map-direction-label" x="30" y="399">AVENIDA SUR ↔</text>
+
+                <g v-for="node in nodes" :key="node.id" class="city-intersection">
+                  <rect :x="node.x - 44" :y="node.y - 44" width="88" height="88" class="junction-pad" />
+                  <path :d="'M' + (node.x - 44) + ' ' + node.y + 'h88M' + node.x + ' ' + (node.y - 44) + 'v88'" class="junction-marking" />
+
+                  <rect :x="node.x - 78" :y="node.y - 112" width="156" height="23" rx="11" class="intersection-label" />
+                  <text :x="node.x" :y="node.y - 97" class="intersection-label-text">
+                    CRUCE [[ node.id ]] · [[ node.axis === 'horizontal' ? 'E—O' : 'N—S' ]] [[ node.stage === 'yellow' ? 'AMARILLO' : 'VERDE' ]]
+                  </text>
+
+                  <g :transform="'translate(' + (node.x - 47) + ' ' + (node.y - 38) + ')'">
+                    <rect width="43" height="22" rx="8" class="mini-light" :class="lightClass(node, 'horizontal')" />
+                    <circle cx="10" cy="11" r="5" class="mini-light-dot" :class="lightClass(node, 'horizontal')" />
+                    <text x="28" y="15">E—O</text>
+                  </g>
+                  <g :transform="'translate(' + (node.x + 4) + ' ' + (node.y - 38) + ')'">
+                    <rect width="43" height="22" rx="8" class="mini-light" :class="lightClass(node, 'vertical')" />
+                    <circle cx="10" cy="11" r="5" class="mini-light-dot" :class="lightClass(node, 'vertical')" />
+                    <text x="28" y="15">N—S</text>
+                  </g>
+
+                  <g v-for="car in visibleCars(node)" :key="car.key"
+                     class="city-car"
+                     :transform="'translate(' + car.x + ' ' + car.y + ') rotate(' + car.rotation + ' 10 6)'">
+                    <rect width="20" height="12" rx="4" :fill="car.color" />
+                    <rect x="6" y="2" width="8" height="4" rx="1.5" fill="#dff6ff" opacity=".9" />
+                  </g>
+
+                  <g :transform="'translate(' + node.x + ' ' + node.y + ')'">
+                    <g v-for="car in crossingCars(node)" :key="car.key"
+                       class="city-crossing-car"
+                       :class="'flow-' + car.direction"
+                       :style="{ '--flow-delay': car.delay + 's', '--car-color': car.color }">
+                      <rect x="-10" y="-6" width="20" height="12" rx="4" />
+                      <rect x="-4" y="-4" width="8" height="4" rx="1.5" class="car-window" />
+                    </g>
+                  </g>
+
+                  <text :x="node.x - 52" :y="node.y + 61" class="queue-label">
+                    FILA [[ Math.round(queueTotal(node, 'horizontal')) ]] · [[ Math.round(queueTotal(node, 'vertical')) ]]
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="city-legend">
+              <span><i class="legend-light legend-green"></i> Verde: el eje avanza</span>
+              <span><i class="legend-light legend-yellow"></i> Amarillo: cambio de fase</span>
+              <span><i class="legend-light legend-red"></i> Rojo: el eje espera</span>
+              <span class="legend-note">Fila por cruce: horizontal · vertical</span>
+            </div>
+          </section>
+
+          <section class="city-dashboard">
+            <div class="card city-controls">
+              <div class="section-heading">
+                <div>
+                  <p class="section-kicker">CONTROL DE RED</p>
+                  <h2>Configuración</h2>
+                </div>
+              </div>
+              <div class="city-control-row">
+                <label for="city-mode">Estrategia de semáforos</label>
+                <select id="city-mode" v-model="mode" @change="changeMode">
+                  <option value="adaptive">Inteligente · prioriza presión</option>
+                  <option value="fixed">Tiempo fijo · referencia</option>
+                </select>
+              </div>
+              <div class="city-control-row">
+                <label for="city-demand">Demanda vehicular</label>
+                <select id="city-demand" v-model.number="demandScale">
+                  <option :value="0.7">Baja</option>
+                  <option :value="1">Normal</option>
+                  <option :value="1.5">Hora pico</option>
+                </select>
+              </div>
+              <div class="button-row">
+                <button @click="startSimulation">Iniciar</button>
+                <button @click="pauseSimulation">Pausar</button>
+                <button @click="resetSimulation">Reiniciar ciudad</button>
+              </div>
+              <p class="city-hint">
+                En modo inteligente, cada cruce compara las colas de ambos ejes al terminar su fase; la espera
+                prolongada también fuerza el turno de una vía.
+              </p>
+            </div>
+
+            <div class="city-stats">
+              <article class="card city-stat"><span>Tiempo simulado</span><strong>[[ elapsed.toFixed(1) ]] s</strong></article>
+              <article class="card city-stat"><span>Vehículos en fila</span><strong>[[ Math.round(totalQueued) ]]</strong></article>
+              <article class="card city-stat"><span>Vehículos atendidos</span><strong>[[ Math.round(departures) ]]</strong></article>
+              <article class="card city-stat"><span>Cruces coordinados</span><strong>[[ nodes.length ]]</strong></article>
+            </div>
+
+            <div class="card city-method">
+              <p class="section-kicker">DECISIÓN ADAPTATIVA</p>
+              <h3>Presión de tráfico</h3>
+              <p>En cada cruce se suman los vehículos de los dos sentidos del eje. El controlador da prioridad al eje con mayor cola y limita la espera del eje contrario.</p>
+              <div class="pressure-list">
+                <div v-for="node in nodes" :key="'pressure-' + node.id" class="pressure-row">
+                  <span>Cruce [[ node.id ]]</span>
+                  <strong>E—O [[ Math.round(queueTotal(node, 'horizontal')) ]]</strong>
+                  <i></i>
+                  <strong>N—S [[ Math.round(queueTotal(node, 'vertical')) ]]</strong>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <footer class="page-footer">Smart Traffic · Modelo didáctico de una red urbana</footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/city-simulation.js') }}"></script>
+  </body>
+</html>
