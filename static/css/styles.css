@@ -576,6 +576,22 @@ h1 {
     box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
 }
 
+.controls-grid input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.adaptive-config-notice {
+    margin: -2px 0 16px;
+    padding: 10px 12px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 9px;
+    background: rgba(14, 116, 144, 0.16);
+    color: #bae6fd;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
 .button-row {
     display: flex;
     flex-wrap: wrap;

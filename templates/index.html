@@ -203,17 +203,20 @@
                 <h2>Parámetros</h2>
               </div>
             </div>
+            <p v-if="mode === 'adaptive'" class="adaptive-config-notice">
+              Modo adaptativo: se ignoran las tasas, capacidades y tiempos configurables; el controlador usa valores internos y calcula los verdes con métodos numéricos. Las filas iniciales A y B sí se usan; sus cambios se aplican al reiniciar.
+            </p>
 
             <div class="controls-grid">
-              <label><span>λ A <small>veh/s</small></span><input v-model.number="config.arrivalA" type="number" step="0.1" /></label>
-              <label><span>λ B <small>veh/s</small></span><input v-model.number="config.arrivalB" type="number" step="0.1" /></label>
-              <label><span>μ A <small>veh/s</small></span><input v-model.number="config.serviceA" type="number" step="0.1" /></label>
-              <label><span>μ B <small>veh/s</small></span><input v-model.number="config.serviceB" type="number" step="0.1" /></label>
-              <label><span>Verde <small>segundos</small></span><input v-model.number="config.greenTime" type="number" step="0.5" /></label>
-              <label><span>Amarillo <small>segundos</small></span><input v-model.number="config.yellowTime" type="number" step="0.5" /></label>
+              <label><span>λ A <small>veh/s</small></span><input v-model.number="config.arrivalA" type="number" step="0.1" :disabled="mode === 'adaptive'" /></label>
+              <label><span>λ B <small>veh/s</small></span><input v-model.number="config.arrivalB" type="number" step="0.1" :disabled="mode === 'adaptive'" /></label>
+              <label><span>μ A <small>veh/s</small></span><input v-model.number="config.serviceA" type="number" step="0.1" :disabled="mode === 'adaptive'" /></label>
+              <label><span>μ B <small>veh/s</small></span><input v-model.number="config.serviceB" type="number" step="0.1" :disabled="mode === 'adaptive'" /></label>
+              <label><span>Verde <small>segundos</small></span><input v-model.number="config.greenTime" type="number" step="0.5" :disabled="mode === 'adaptive'" /></label>
+              <label><span>Amarillo <small>segundos</small></span><input v-model.number="config.yellowTime" type="number" step="0.5" :disabled="mode === 'adaptive'" /></label>
               <label><span>Fila inicial A <small>vehículos</small></span><input v-model.number="config.initialA" type="number" min="0" /></label>
               <label><span>Fila inicial B <small>vehículos</small></span><input v-model.number="config.initialB" type="number" min="0" /></label>
-              <label><span>Tiempo total <small>segundos</small></span><input v-model.number="config.totalTime" type="number" step="10" /></label>
+              <label><span>Tiempo total <small>segundos</small></span><input v-model.number="config.totalTime" type="number" step="10" :disabled="mode === 'adaptive'" /></label>
               <label><span>Modo de control</span>
                 <select v-model="mode" @change="changeMode">
                   <option value="fixed">Fijo</option>
@@ -238,7 +241,7 @@
               </div>
             </div>
             <div class="stats-grid">
-              <div class="stat-box stat-time"><span>Tiempo simulado</span><strong>[[ elapsed.toFixed(1) ]]<small> s</small></strong><div class="stat-track"><span :style="{ width: Math.min(100, elapsed / (Number(config.totalTime) || 1) * 100) + '%' }"></span></div></div>
+              <div class="stat-box stat-time"><span>Tiempo simulado</span><strong>[[ elapsed.toFixed(1) ]]<small> s</small></strong><div class="stat-track"><span :style="{ width: Math.min(100, elapsed / (Number(activeConfig.totalTime) || 1) * 100) + '%' }"></span></div></div>
               <div class="stat-box"><span>Vehículos llegados</span><strong>[[ Math.round(stats.arrivals) ]]</strong><small>demanda total</small></div>
               <div class="stat-box"><span>Vehículos atendidos</span><strong>[[ Math.round(stats.departures) ]]</strong><small>salieron del cruce</small></div>
               <div class="stat-box stat-waiting"><span>En espera ahora</span><strong>[[ Math.round(queues.A + queues.B) ]]</strong><small>A [[ Math.round(queues.A) ]] · B [[ Math.round(queues.B) ]]</small></div>

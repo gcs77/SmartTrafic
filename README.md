@@ -178,8 +178,9 @@ smart-traffic/
    - python app.py
 5. Abre tu navegador en:
    - http://127.0.0.1:5000
-6. Ajusta los parámetros del tráfico y usa los botones de inicio, pausa y reinicio.
-7. Revisa la comparación final y el resumen ejecutivo.
+6. En modo fijo, ajusta los parámetros del tráfico. En modo adaptativo, las tasas, capacidades y tiempos editables se ignoran: el controlador usa valores internos y calcula los tiempos verdes con métodos numéricos. Puedes ajustar las filas iniciales A y B; los cambios se aplican al reiniciar.
+7. Usa los botones de inicio, pausa y reinicio.
+8. Revisa la comparación final y el resumen ejecutivo.
 
 ## Siguiente paso
 La siguiente etapa será construir la simulación básica sin métodos numéricos, manteniendo el modelo anterior como base teórica.
@@ -326,7 +327,7 @@ Estas comprobaciones se mantienen en la suite de pruebas del proyecto.
 
 La interfaz está implementada con Vue 3 usando su compilación global desde CDN; Flask sigue sirviendo la página y generando el resumen de escenarios. Chart.js se mantiene para la gráfica y no se requiere Node.js ni un paso de compilación. Al abrir la aplicación, se necesita conexión a internet para cargar Vue y Chart.js desde sus CDN.
 
-La intersección muestra dos aproximaciones perpendiculares que comparten una zona de conflicto: una dirección cruza con luz verde mientras la otra espera en rojo. El panel numérico actualiza Jacobi para estimar la presión acoplada de las filas, bisección y regla falsa para recomendar y verificar la duración del verde, Newton para pronosticar las filas y Simpson/Romberg para medir la congestión acumulada. En modo adaptativo, las recomendaciones de bisección ajustan la duración de las fases verdes. Cada dirección también muestra sus luces roja, amarilla y verde con etiquetas textuales.
+La intersección muestra dos aproximaciones perpendiculares que comparten una zona de conflicto: una dirección cruza con luz verde mientras la otra espera en rojo. El panel numérico actualiza Jacobi para estimar la presión acoplada de las filas, bisección y regla falsa para recomendar y verificar la duración del verde, Newton para pronosticar las filas y Simpson/Romberg para medir la congestión acumulada. En modo adaptativo, se ignoran las tasas, capacidades y tiempos configurables y se usa un escenario interno de referencia, salvo las filas iniciales A y B, que el usuario puede definir; las recomendaciones numéricas ajustan el verde, mientras el amarillo conserva el tiempo interno de seguridad. Cada dirección también muestra sus luces roja, amarilla y verde con etiquetas textuales.
 
 La interfaz organiza los métodos por etapas (estimar, decidir y evaluar), muestra indicadores de cola y usa vehículos animados en vista cenital para visualizar el avance por el cruce.
 

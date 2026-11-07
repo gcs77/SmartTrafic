@@ -1,5 +1,17 @@
 const { createApp } = Vue;
 
+const AUTONOMOUS_CONFIG = Object.freeze({
+    arrivalA: 1.2,
+    arrivalB: 1.0,
+    serviceA: 2.0,
+    serviceB: 1.8,
+    greenTime: 10,
+    yellowTime: 2,
+    initialA: 6,
+    initialB: 4,
+    totalTime: 60,
+});
+
 createApp({
     delimiters: ['[[', ']]'],
     data() {
@@ -101,6 +113,15 @@ createApp({
             const count = this.running && this.signalStateB === 'green' ? Math.min(3, Math.ceil(this.queues.B)) : 0;
             return Array.from({ length: count }, (_, index) => index);
         },
+        activeConfig() {
+            return this.mode === 'adaptive'
+                ? {
+                    ...AUTONOMOUS_CONFIG,
+                    initialA: Number(this.config.initialA) || 0,
+                    initialB: Number(this.config.initialB) || 0,
+                }
+                : this.config;
+        },
         currentScenario() {
             const scenario = this.scenarioSummary.scenarios[0] || {};
             const fixed = Number(scenario.fixed_total_queue || 0);
@@ -154,19 +175,23 @@ createApp({
             }
         },
         getCurrentConfig() {
+            const config = this.activeConfig;
             return {
-                arrivalA: Number(this.config.arrivalA) || 0,
-                arrivalB: Number(this.config.arrivalB) || 0,
-                serviceA: Number(this.config.serviceA) || 0,
-                serviceB: Number(this.config.serviceB) || 0,
-                greenTime: Number(this.config.greenTime) || 1,
-                yellowTime: Number(this.config.yellowTime) || 0,
-                totalTime: Number(this.config.totalTime) || 60,
+                arrivalA: Number(config.arrivalA) || 0,
+                arrivalB: Number(config.arrivalB) || 0,
+                serviceA: Number(config.serviceA) || 0,
+                serviceB: Number(config.serviceB) || 0,
+                greenTime: Number(config.greenTime) || 1,
+                yellowTime: Number(config.yellowTime) || 0,
+                initialA: Number(config.initialA) || 0,
+                initialB: Number(config.initialB) || 0,
+                totalTime: Number(config.totalTime) || 60,
             };
         },
         syncPhaseDurations() {
-            const greenTime = Number(this.config.greenTime) || 1;
-            const yellowTime = Number(this.config.yellowTime) || 0;
+            const config = this.getCurrentConfig();
+            const greenTime = config.greenTime;
+            const yellowTime = config.yellowTime;
             this.phases[0].duration = this.mode === 'adaptive' ? Math.max(1, this.analysis.greenA || greenTime) : greenTime;
             this.phases[2].duration = this.mode === 'adaptive' ? Math.max(1, this.analysis.greenB || greenTime) : greenTime;
             this.phases[1].duration = yellowTime;
@@ -250,11 +275,12 @@ createApp({
         },
         resetSimulation() {
             this.pauseSimulation();
+            const config = this.getCurrentConfig();
             this.elapsed = 0;
             this.phaseIndex = 0;
             this.phaseElapsed = 0;
-            this.queues.A = Number(this.config.initialA) || 0;
-            this.queues.B = Number(this.config.initialB) || 0;
+            this.queues.A = config.initialA;
+            this.queues.B = config.initialB;
             this.queueVehicles.A = [];
             this.queueVehicles.B = [];
             this.nextVehicleId = 1;
@@ -275,11 +301,14 @@ createApp({
             this.signalStatus = 'Semáforo: simulado';
         },
         changeMode() {
-            this.syncPhaseDurations();
+            this.analysis.greenA = 0;
+            this.analysis.greenB = 0;
+            this.resetSimulation();
             this.signalStatus = `Semáforo: modo ${this.mode}`;
         },
         async refreshAnalysis() {
             const requestId = ++this.analysisRequestId;
+            const config = this.getCurrentConfig();
             this.analysis.error = '';
             try {
                 const response = await fetch('/api/traffic-analysis', {
@@ -288,10 +317,10 @@ createApp({
                     body: JSON.stringify({
                         queues: this.queues,
                         rates: {
-                            arrivalA: Number(this.config.arrivalA) || 0,
-                            arrivalB: Number(this.config.arrivalB) || 0,
-                            serviceA: Number(this.config.serviceA) || 0,
-                            serviceB: Number(this.config.serviceB) || 0,
+                            arrivalA: config.arrivalA,
+                            arrivalB: config.arrivalB,
+                            serviceA: config.serviceA,
+                            serviceB: config.serviceB,
                         },
                         history: this.stats.history.slice(-33),
                     }),
@@ -302,6 +331,9 @@ createApp({
                     throw new Error(result.error || `HTTP ${response.status}`);
                 }
                 this.analysis = { ...result, error: '' };
+                if (!this.running && this.mode === 'adaptive') {
+                    this.syncPhaseDurations();
+                }
             } catch (error) {
                 if (requestId === this.analysisRequestId) {
                     this.analysis.error = error.message;
